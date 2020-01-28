@@ -1,0 +1,16 @@
+#This is an example of a YAML file for tables to scanned and uploaded to S3
+
+job: dynamic-dag-etl
+dbname: example
+version: 1.0
+bucket_name: 'bucket-name'
+prefix: 'bucket-prefix'
+data_sources:
+  - sales: '/Users/hardik.furia/Downloads/sales-data.csv'
+data_processors:
+  - split: '5'
+data_sink:
+  - direc: '/Users/hardik.furia/sink/'
+
+
+
