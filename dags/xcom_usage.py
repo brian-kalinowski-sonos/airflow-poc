@@ -44,11 +44,13 @@ def task1():
 
 def task2(**context):
     print("This is task2, here we'll pull the value which was pushed in task1.\n")
-    value = context['task_instance'].xcom_pull(task_ids='task1')
+    value = context['task_instance'].xcom_pull(task_ids=['task1','task3'])
     print(value," was received by the task 2")
-    value=value+5
+    # value=value+5
 
-
+def task3():
+    value=5
+    return value
 
 task1=PythonOperator(
     task_id='task1',
@@ -68,8 +70,18 @@ task2=PythonOperator(
     dag=dag
 )
 
-task1 >> task2
+task3=PythonOperator(
+    task_id='task3',
+    python_callable=task3,
+    # provide_context=True,
+    do_xcom_push=True,
+    dag=dag
+)
 
+
+
+task1 >> task2
+task3 >> task2
 
 
 

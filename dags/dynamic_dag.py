@@ -20,7 +20,7 @@ default_args = {
 }
 
 dag = DAG(
-    dag_id="dynamic_dag", default_args=default_args, schedule_interval=timedelta(days=1)
+    dag_id="dynamic_dag", default_args=default_args, schedule_interval='@once'
 )
 
 start = DummyOperator(
