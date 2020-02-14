@@ -29,11 +29,20 @@ start = DummyOperator(
 )
 
 def getUpstreamData(**kwargs):
-    # print(kwargs['src_loc'])
-    print('{} is staged at {} location\n'.format(kwargs['src_loc'],kwargs['dest_loc']))
-    shutil.copy2(kwargs['src_loc'], kwargs['dest_loc'])
-def processData(**kwargs):
-    print('{} is the staged location fo the data file we wil reading it as DataFrame\n'.format(kwargs['data_file']))
+    """
+    Gets raw data from the kwargs['src_loc'] and stages the data to cwd. 
+    returns stg_file_full_path, this return is an xcom push.
+    """
+    cwd=os.getcwd()
+    shutil.copy2(kwargs['src_loc'],cwd)
+    stg_file_full_path = cwd+'/'+ntpath.basename(kwargs['src_loc'])
+    return stg_file_full_path
+    
+def dataTransformers(**kwargs):
+    """
+    Staged Data is transformed can be showcased using Branch Operator.
+    """
+
     staged_data_df = pd.read_csv(kwargs['data_file'])
     staged_data_df = staged_data_df.iloc[:, (0,kwargs['arg']+1)]
     staged_data_df.to_csv(kwargs['data_file'],index=False)
@@ -43,11 +52,13 @@ def putDataDownstream(**kwargs):
     final_destination=kwargs['sink_loc']+ntpath.basename(kwargs['staged_file'])
     shutil.move(kwargs['staged_file'],final_destination)
     print('Sink File has been generated')
+    
+    
 def createDynamicDag(task_id, callableFunction, args):
-
     task = PythonOperator(
         task_id=task_id,
         provide_context=True,
+        do_xcom_push=True,
         python_callable=eval(callableFunction),
         op_kwargs=args,
         dag=dag
@@ -70,8 +81,10 @@ with open('/Users/hardik.furia/PycharmProjects/airflow-poc/yml/generated-yaml.ya
         for data_source,location in data_source.items():
             get_upstream_data = createDynamicDag('{}-getData'.format(data_source),
                                                  'getUpstreamData',
-                                                 {'src_loc': location,
-                                                  'dest_loc': cwd})
+                                                 {
+                                                     'src_loc': location,
+                                                     'stg_loc': cwd
+                                                 })
             staged_data_path=cwd+'/'+ntpath.basename(location)
 
             start >> get_upstream_data
