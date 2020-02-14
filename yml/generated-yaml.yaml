@@ -8,6 +8,6 @@ prefix: 'bucket-prefix'
 data_sources:
   - sales: '/Users/hardik.furia/Downloads/sales-data.csv'
 data_transformers:
-  - split: '5'
+  - sales: '5'
 data_sink:
   - sales: '/Users/hardik.furia/sink/'
