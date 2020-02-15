@@ -73,7 +73,7 @@ end = DummyOperator(
 with open('/Users/hardik.furia/PycharmProjects/airflow-poc/yml/generated-yaml.yaml') as f:
     config_file=yaml.safe_load(f)
     data_sources=config_file['data_sources']
-    data_processors=config_file['data_processors']
+    data_transformers=config_file['data_transformers']
     data_sinks=config_file['data_sink']
     cwd=os.getcwd()
 
@@ -88,13 +88,6 @@ with open('/Users/hardik.furia/PycharmProjects/airflow-poc/yml/generated-yaml.ya
             staged_data_path=cwd+'/'+ntpath.basename(location)
 
             start >> get_upstream_data
-
-            for data_processor in data_processors:
-                for data_processor,arg in data_processor.items():
-                    process_data=createDynamicDag('{}-stagedData'.format(data_processor),
-                                                  'processData',
-                                                  {'data_file':staged_data_path,
-                                                   'arg':int(arg)})
 
                     get_upstream_data >> process_data
 
