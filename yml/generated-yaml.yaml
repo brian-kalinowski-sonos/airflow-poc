@@ -7,7 +7,7 @@ bucket_name: 'bucket-name'
 prefix: 'bucket-prefix'
 data_sources:
   - sales: '/Users/hardik.furia/Downloads/sales-data.csv'
-data_transformers:
-  - sales: '5'
-data_sink:
-  - sales: '/Users/hardik.furia/sink/'
+  - travel: '/Users/hardik.furia/Downloads/travel-data.csv'
+data_sink: '/Users/hardik.furia/sink'
+
+

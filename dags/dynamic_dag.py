@@ -20,7 +20,7 @@ default_args = {
 }
 
 dag = DAG(
-    dag_id="dynamic_dag", default_args=default_args, schedule_interval='@once'
+    dag_id="sample_workflow", default_args=default_args, schedule_interval='@once'
 )
 
 start = DummyOperator(
@@ -28,33 +28,35 @@ start = DummyOperator(
     dag=dag
 )
 
-def getUpstreamData(**kwargs):
+def captureData(**kwargs):
     """
     Gets raw data from the kwargs['src_loc'] and stages the data to cwd. 
-    returns stg_file_full_path, this return is an xcom push.
+    returns stg_raw_path, this return is an xcom push.
     """
     cwd=os.getcwd()
     shutil.copy2(kwargs['src_loc'],cwd)
-    stg_file_full_path = cwd+'/'+ntpath.basename(kwargs['src_loc'])
-    return stg_file_full_path
+    stg_rawFile_path = cwd+'/'+ntpath.basename(kwargs['src_loc'])
+    return stg_rawFile_path
     
-def dataTransformers(**kwargs):
+def cleanseData(**kwargs):
     """
-    Staged Data is transformed can be showcased using Branch Operator.
+    Converts stg-raw-data to json and stores it back in the staging location.
+    Preserving the staged-raw-data.
+    returns the
     """
+    stg_rawFile_path=kwargs['task_instance'].xcom_pull(kwargs['task_id'])
+    stg_raw_df = pd.read_csv(stg_rawFile_path)
+    stg_cleanseFile_path=stg_rawFile_path[:-4]+'.json'
+    stg_raw_df.to_json(stg_cleanseFile_path,orient='table')
+    return stg_cleanseFile_path
 
-    staged_data_df = pd.read_csv(kwargs['data_file'])
-    staged_data_df = staged_data_df.iloc[:, (0,kwargs['arg']+1)]
-    staged_data_df.to_csv(kwargs['data_file'],index=False)
+def sinkData(**kwargs):
+    stg_cleanseFile_path=kwargs['task_instance'].xcom_pull(kwargs['task_id'])
+    shutil.copy2(stg_cleanseFile_path,kwargs['data_sink'])
 
-def putDataDownstream(**kwargs):
-    print('{} staged data will be moved to {} sink location\n'.format(kwargs['staged_file'],kwargs['sink_loc']))
-    final_destination=kwargs['sink_loc']+ntpath.basename(kwargs['staged_file'])
-    shutil.move(kwargs['staged_file'],final_destination)
-    print('Sink File has been generated')
     
     
-def createDynamicDag(task_id, callableFunction, args):
+def createTask(task_id, callableFunction, args):
     task = PythonOperator(
         task_id=task_id,
         provide_context=True,
@@ -65,7 +67,6 @@ def createDynamicDag(task_id, callableFunction, args):
     )
     return task
 
-
 end = DummyOperator(
     task_id='end',
     dag=dag)
@@ -73,31 +74,32 @@ end = DummyOperator(
 with open('/Users/hardik.furia/PycharmProjects/airflow-poc/yml/generated-yaml.yaml') as f:
     config_file=yaml.safe_load(f)
     data_sources=config_file['data_sources']
-    data_transformers=config_file['data_transformers']
-    data_sinks=config_file['data_sink']
-    cwd=os.getcwd()
+    data_sink=config_file['data_sink']
+
 
     for data_source in data_sources:
         for data_source,location in data_source.items():
-            get_upstream_data = createDynamicDag('{}-getData'.format(data_source),
-                                                 'getUpstreamData',
-                                                 {
-                                                     'src_loc': location,
-                                                     'stg_loc': cwd
-                                                 })
-            staged_data_path=cwd+'/'+ntpath.basename(location)
+            capture_data = createTask('{}-captureData'.format(data_source),\
+                                      'captureData',\
+                                      {
+                                          'src_loc': location,
+                                      })
+            start >> capture_data
 
-            start >> get_upstream_data
+            cleanse_data = createTask('{}-cleanseData'.format(data_source),\
+                                      'cleanseData',\
+                                      {
+                                          'task_id' : '{}-captureData'.format(data_source)
+                                      })
+            capture_data >> cleanse_data
 
-                    get_upstream_data >> process_data
+            sink_data = createTask('{}-sinkData'.format(data_source),\
+                                    'sinkData',
+                                    {
+                                       'task_id' : '{}-cleanseData'.format(data_source),
+                                        'data_sink' : data_sink
+                                   })
 
-                    for data_sink in data_sinks:
-                        for data_sink,location in data_sink.items():
-                            put_data_downstream=createDynamicDag('{}-dataSink'.format(data_sink),
-                                                                 'putDataDownstream',
-                                                                 {'staged_file':staged_data_path,
-                                                                  'sink_loc':location})
+            cleanse_data >> sink_data
+            sink_data >> end
 
-                            process_data >> put_data_downstream
-
-                            put_data_downstream >> end
