@@ -1,7 +1,7 @@
 import unittest
 from airflow.models import DagBag
 
-class GeneralDagIntegrity(unittest.TestCase):
+class TestGeneralDagIntegrity(unittest.TestCase):
     LOAD_SECOND_THRESHOLD = 2
     def setUp(self):
         self.dagbag = DagBag()
@@ -19,14 +19,12 @@ class GeneralDagIntegrity(unittest.TestCase):
         for dag_id, dag in self.dagbag.dags.items():
             emails = dag.default_args.get('email', [])
             email_msg = 'Alert email not set for DAG {id}'.format(id=dag_id)
-            # descp_msg='Alert description not set for DAG {id}'.format(id=dag_id)
             self.assertIn(self.emails, emails, email_msg)
 
     def test_description_present(self):
         for dag_id, dag in self.dagbag.dags.items():
-
             descp_msg = 'Alert description not set for DAG {id}'.format(id=dag_id)
             self.assertNotEqual(dag.description, '', descp_msg)
 
-suite = unittest.TestLoader().loadTestsFromTestCase(GeneralDagIntegrity)
+suite = unittest.TestLoader().loadTestsFromTestCase(TestGeneralDagIntegrity)
 unittest.TextTestRunner(verbosity=1).run(suite)
